@@ -52,6 +52,7 @@ model = AirRaidModel_papar(window_size)
 model.compile()
 model.to(device="cuda")
 agent = AirRaidAgent(env, model, learning_rate=0.001, initial_epsilon=1.0, final_epsilon=0.01, decay_steps = episode_num // 5, discount_factor=0.99, window_size=window_size, memory_size=200000)
+agent.to("cuda")
 rewards_history = []
 lengths_history = []
 eval_rewards_history = []
