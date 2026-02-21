@@ -27,6 +27,8 @@ os.makedirs(save_dir, exist_ok=True)
 # これを明示的に呼ぶことでALE環境がgymに登録されます
 gym.register_envs(ale_py)
 
+
+
 H = 250
 W = 160
 episode_num = 10000
