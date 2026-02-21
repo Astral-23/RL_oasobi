@@ -20,12 +20,8 @@ class AirRaidAgent:
         batch_size=32,
         window_size=4,
         memory_size=50000,
-        device = "auto"
+        device="cpu"
     ):
-        if device == "auto":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = device
             
         self.env = env
         self.model = model
