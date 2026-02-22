@@ -27,7 +27,7 @@ class MaxPoolWrapper(gym.ObservationWrapper):
     
 class FrameSkipMaxPoolWrapper(gym.Wrapper):
     """
-    FrameSkip(with Max Pool for last 2 frames)
+    FrameSkip + MaxPool。返すのは最後のフレームではなく、最後の2フレのMaxPool
     envのframeskipと併用しないこと。
     """
     def __init__(self, env, skip=4):

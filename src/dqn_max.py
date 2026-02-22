@@ -116,7 +116,7 @@ for episode in tqdm(range(episode_num)):
     obs, info = env.reset()
     episode_over = False
     t = 0
-    noop_step = np.random.randint(0, 31)
+    noop_step = np.random.randint(0, 8)
     while not episode_over:
         if t < noop_step:
             action = 0
