@@ -56,7 +56,7 @@ class AirRaidAgent:
         self.memory_size = memory_size
 
         self.buffer = FrameStackReplayBuffer(memory_size, frame_size, window_size, "cpu")
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate, eps=1e-5)
         self.criterion = nn.MSELoss()
         
         # self.to(device)
@@ -173,3 +173,20 @@ class AirRaidAgent:
         avg_length /= num_episodes
         self.set_mode(pre_mode)
         return avg_reward, avg_length
+    
+    def warm_up(self, count = 50000):
+        pre_mode = self.is_training
+        self.set_mode(False)
+        obs, info = self.env.reset()
+        while count > 0:
+            action = self.env.action_space.sample()
+            next_obs, reward, terminated, truncated, next_info = self.env.step(action)
+            self.add_experience(obs, action, reward, terminated, truncated, next_obs)
+            if terminated or truncated:
+                obs, info = self.env.reset()
+            else:
+                obs = next_obs
+            count -= 1
+           
+        self.set_mode(pre_mode)
+ 

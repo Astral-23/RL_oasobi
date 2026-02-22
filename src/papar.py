@@ -1,3 +1,6 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 import torch
 import torch.nn as nn
 import torch.functional as F
@@ -14,7 +17,7 @@ from TensorReplayBuffer import TensorReplayBuffer
 from model import AirRaidModel_papar
 from agent import AirRaidAgent
 
-torch.set_num_threads(10)
+torch.set_num_threads(1)
 
 # コマンドライン引数の取得と保存先ディレクトリの設定
 if len(sys.argv) < 2:
@@ -27,6 +30,39 @@ os.makedirs(save_dir, exist_ok=True)
 # これを明示的に呼ぶことでALE環境がgymに登録されます
 gym.register_envs(ale_py)
 
+
+def save_training_plots(save_dir, rewards_history, lengths_history, eval_episodes_history, eval_rewards_history, eval_lengths_history):
+    has_eval = len(eval_rewards_history) > 0
+    file_path = os.path.join(save_dir, "training_performance.png")
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+
+    # 上段: 報酬 (Reward)
+    ax1.plot(rewards_history, label="Training Reward (Noisy)", color="blue", alpha=0.3)
+    if has_eval:
+        ax1.plot(eval_episodes_history, eval_rewards_history, 
+                 label="Evaluation Reward (Greedy)", color="red", marker='o', linewidth=2)
+    ax1.set_title("Reward Performance")
+    ax1.set_xlabel("Episode")
+    ax1.set_ylabel("Total Reward")
+    ax1.legend(loc="upper left")
+    ax1.grid(True, linestyle='--', alpha=0.5)
+
+    # 下段: エピソードの長さ (Length / Steps)
+    ax2.plot(lengths_history, label="Training Length (Noisy)", color="orange", alpha=0.3)
+    if has_eval:
+        ax2.plot(eval_episodes_history, eval_lengths_history, 
+                 label="Evaluation Length (Greedy)", color="darkgreen", marker='s', linewidth=2)
+    ax2.set_title("Episode Duration (Survival Steps)")
+    ax2.set_xlabel("Episode")
+    ax2.set_ylabel("Steps")
+    ax2.legend(loc="upper left")
+    ax2.grid(True, linestyle='--', alpha=0.5)
+
+    plt.tight_layout()
+    plt.savefig(file_path)
+    plt.close()
+    
 
 
 H = 250
@@ -53,7 +89,7 @@ env = gym.wrappers.FrameStackObservation(env, window_size)
 model = AirRaidModel_papar(window_size)
 model.compile()
 model.to(device="cuda")
-agent = AirRaidAgent(env, model, learning_rate=0.001, initial_epsilon=1.0, final_epsilon=0.01, decay_steps = episode_num // 5, discount_factor=0.99, window_size=window_size, memory_size=200000)
+agent = AirRaidAgent(env, model, learning_rate=0.0002, initial_epsilon=1.0, final_epsilon=0.01, decay_steps = episode_num // 5, discount_factor=0.99, window_size=window_size, memory_size=200000, frame_size=(250, 160))
 agent.to("cuda")
 rewards_history = []
 lengths_history = []
@@ -89,6 +125,13 @@ for episode in tqdm(range(episode_num)):
                 eval_lengths_history.append(eval_length)
                 eval_episodes_history.append(episode + 1)
                 print(f"\n[Evaluation] Episode {episode+1}: Avg Reward: {eval_reward:.2f} Avg length: {eval_length:.2f}")
+                save_training_plots(save_dir, rewards_history, lengths_history, 
+                                    eval_episodes_history, eval_rewards_history, eval_lengths_history)
+                
+                # 時刻の記録も更新
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with open(os.path.join(save_dir, "time.txt"), "w") as f:
+                    f.write(current_time + "\n")
                 
 
         agent.add_experience(obs, action, reward, terminated, truncated, next_obs)
@@ -102,52 +145,12 @@ for episode in tqdm(range(episode_num)):
         
         
         
-        
-# --- データの整合性チェック ---
-has_eval = len(eval_rewards_history) > 0
-
-# 1. time.txtに時刻を記録
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-time_file_path = os.path.join(save_dir, "time.txt")
-with open(time_file_path, "w") as f:
-    f.write(current_time + "\n")
-
-# 2. グラフの描画
-file_path = os.path.join(save_dir, "training_performance.png")
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12)) # 縦を少し長めに調整
-
-# --- 上段: 報酬 (Reward) ---
-ax1.plot(rewards_history, label="Training Reward (Noisy)", color="blue", alpha=0.3)
-if has_eval:
-    ax1.plot(eval_episodes_history, eval_rewards_history, 
-             label="Evaluation Reward (Greedy)", color="red", marker='o', linewidth=2)
-ax1.set_title("Reward Performance")
-ax1.set_xlabel("Episode")
-ax1.set_ylabel("Total Reward")
-ax1.legend(loc="upper left")
-ax1.grid(True, linestyle='--', alpha=0.5)
-
-# --- 下段: エピソードの長さ (Length / Steps) ---
-# 学習時のステップ（薄いオレンジ）
-ax2.plot(lengths_history, label="Training Length (Noisy)", color="orange", alpha=0.3)
-# 評価時のステップ（濃い緑や茶色で区別）
-if has_eval:
-    # eval_lengths_history は evaluate_agent が返した平均長さのリスト
-    ax2.plot(eval_episodes_history, eval_lengths_history, 
-             label="Evaluation Length (Greedy)", color="darkgreen", marker='s', linewidth=2)
-ax2.set_title("Episode Duration (Survival Steps)")
-ax2.set_xlabel("Episode")
-ax2.set_ylabel("Steps")
-ax2.legend(loc="upper left")
-ax2.grid(True, linestyle='--', alpha=0.5)
-
-plt.tight_layout()
-plt.savefig(file_path)
-plt.close()
+save_training_plots(save_dir, rewards_history, lengths_history, 
+                    eval_episodes_history, eval_rewards_history, eval_lengths_history)
+agent.save(os.path.join(save_dir, "model.pth"))
 
 print(f"--- 統計を保存しました ---")
+has_eval = len(eval_rewards_history) > 0
 print(f"最終評価スコア: {eval_rewards_history[-1] if has_eval else 'N/A'}")
 print(f"最終生存ステップ: {eval_lengths_history[-1] if has_eval else 'N/A'}")
-
 # モデルの保存
-agent.save(os.path.join(save_dir, "model.pth"))

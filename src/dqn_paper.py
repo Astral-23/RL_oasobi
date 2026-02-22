@@ -20,8 +20,6 @@ from model import AirRaidModel_nature
 from agent import AirRaidAgent
 from wrapper import ClipRewardWrapper
 
-
-
 torch.set_num_threads(1)
 
 # コマンドライン引数の取得と保存先ディレクトリの設定
@@ -77,7 +75,7 @@ def save_training_plots(save_dir, rewards_history, lengths_history, eval_episode
 H = 250
 W = 160
 episode_num = 10000
-C = episode_num // 1200
+C = episode_num // 800
 time_stamps = 100 #ログの頻度にも影響するよ
 video_time_stamps = time_stamps // 10
 
@@ -90,7 +88,6 @@ env = gym.make("ALE/AirRaid-v5", render_mode=None)
 #    name_prefix="training",
 #    episode_trigger=lambda x: x == 0 or (x + 1) % (episode_num // video_time_stamps) == 0,
 #)
-
 env = ClipRewardWrapper(env)
 env = gym.wrappers.RecordEpisodeStatistics(env)
 env = gym.wrappers.GrayscaleObservation(env, keep_dim=False)
@@ -98,10 +95,11 @@ env = gym.wrappers.GrayscaleObservation(env, keep_dim=False)
 env = gym.wrappers.ResizeObservation(env, (120, 120))
 env = gym.wrappers.FrameStackObservation(env, window_size)
 
+
 model = AirRaidModel_nature(window_size)
 model.compile()
 model.to(device="cuda")
-agent = AirRaidAgent(env, model, learning_rate=0.0002, initial_epsilon=1.0, final_epsilon=0.01, decay_steps = episode_num // 5, discount_factor=0.99, window_size=window_size, memory_size=200000, frame_size=(120, 120), use_target_model=True, double_DQN=False)
+agent = AirRaidAgent(env, model, learning_rate=0.0002, initial_epsilon=1.0, final_epsilon=0.01, decay_steps = episode_num // 5, discount_factor=0.99, window_size=window_size, memory_size=200000, frame_size=(120, 120), use_target_model=False, double_DQN=True)
 agent.to("cuda")
 
 rewards_history = []
@@ -113,6 +111,7 @@ eval_lengths_history = []
 agent.set_mode(True)
 agent.warm_up()
 
+
 for episode in tqdm(range(episode_num)):
     obs, info = env.reset()
     episode_over = False
@@ -123,7 +122,6 @@ for episode in tqdm(range(episode_num)):
             action = 0
         else:
             action = agent.get_action(obs)
-   
             
         next_obs, reward, terminated, truncated, next_info = env.step(action)
         episode_over = terminated or truncated
