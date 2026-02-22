@@ -10,6 +10,9 @@ from wrapper import ClipRewardWrapper, MaxPoolWrapper
 
 
 def build_env(window_size=4, image_size=120):
+    """
+    試したい環境
+    """
     gym.register_envs(ale_py)
     env = gym.make("ALE/AirRaid-v5", render_mode=None)
     env = ClipRewardWrapper(env)
@@ -22,6 +25,10 @@ def build_env(window_size=4, image_size=120):
 
 
 def check_and_get_latest(obs, window_size, image_size):
+    """
+    白黒かつスタックフレーム前提
+
+    """
     arr = np.asarray(obs)
     assert arr.ndim == 3, f"expected (C,H,W), got {arr.shape}"
     assert arr.shape == (window_size, image_size, image_size), (

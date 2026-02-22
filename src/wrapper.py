@@ -24,3 +24,36 @@ class MaxPoolWrapper(gym.ObservationWrapper):
             out = obs
         self.prev = np.array(obs,copy=True)
         return out
+    
+class FrameSkipMaxPoolWrapper(gym.Wrapper):
+    """
+    FrameSkip(with Max Pool for last 2 frames)
+    envのframeskipと併用しないこと。
+    """
+    def __init__(self, env, skip=4):
+        super().__init__(env)
+        self.skip = skip
+    
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+    
+    def step(self, action):
+        obs_buf = []
+        total_reward = 0
+        for _ in range(self.skip):
+            obs, reward, terminated, truncated, info = self.env.step(action)
+            obs_buf.append(np.array(obs, copy=True))
+            obs_buf = obs_buf[-2:]
+            total_reward += reward
+            if terminated or truncated:
+                break
+        if len(obs_buf) == 1:
+            next_obs = obs_buf[0]
+        else:
+            next_obs = np.maximum(obs_buf[0], obs_buf[1])
+        return next_obs, total_reward, terminated, truncated, info
+    
+        
+        
+        
+        

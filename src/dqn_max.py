@@ -18,7 +18,7 @@ import ale_py
 from TensorReplayBuffer import TensorReplayBuffer
 from model import AirRaidModel_nature
 from agent import AirRaidAgent
-from wrapper import ClipRewardWrapper, MaxPoolWrapper
+from wrapper import ClipRewardWrapper, MaxPoolWrapper, FrameSkipMaxPoolWrapper
 
 torch.set_num_threads(1)
 
@@ -81,7 +81,7 @@ video_time_stamps = time_stamps // 10
 
 window_size = 4
 
-env = gym.make("ALE/AirRaid-v5", render_mode=None)
+env = gym.make("ALE/AirRaid-v5", render_mode=None, frameskip=1)
 #env = gym.wrappers.RecordVideo(
 #    env,
 #    video_folder=save_dir,
@@ -89,7 +89,7 @@ env = gym.make("ALE/AirRaid-v5", render_mode=None)
 #    episode_trigger=lambda x: x == 0 or (x + 1) % (episode_num // video_time_stamps) == 0,
 #)
 env = ClipRewardWrapper(env)
-env = MaxPoolWrapper(env)
+env = FrameSkipMaxPoolWrapper(env, skip=4)
 env = gym.wrappers.RecordEpisodeStatistics(env)
 env = gym.wrappers.GrayscaleObservation(env, keep_dim=False)
 env = gym.wrappers.ResizeObservation(env, (120, 120))
